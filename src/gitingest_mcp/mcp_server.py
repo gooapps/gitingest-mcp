@@ -136,7 +136,7 @@ class GitIngestMCPServer:
                 ),
                 Tool(
                     name="validate_repository_url",
-                    "description": "Validate if a URL is a valid GitHub repository URL",
+                    description="Validate if a URL is a valid GitHub repository URL",
                     inputSchema={
                         "type": "object",
                         "properties": {
