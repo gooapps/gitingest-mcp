@@ -10,23 +10,14 @@ import asyncio
 import json
 import logging
 import os
-import sys
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict
 from urllib.parse import urlparse
 
-import mcp
 from mcp.server import Server
 from mcp.server.lowlevel.server import NotificationOptions
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
-from mcp.types import (
-    CallToolRequest,
-    CallToolResult,
-    ListToolsRequest,
-    ListToolsResult,
-    Tool,
-    TextContent,
-)
+from mcp.types import CallToolResult, ListToolsResult, Tool, TextContent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -52,107 +43,109 @@ class GitIngestMCPServer:
         """Setup MCP server handlers."""
         
         @self.server.list_tools()
-        async def handle_list_tools() -> List[Tool]:
+        async def handle_list_tools() -> ListToolsResult:
             """List available tools."""
-            return [
-                Tool(
-                    name="ingest_repository",
-                    description="Generate a text digest of a GitHub repository using GitIngest. Returns structured plain-text optimized for LLM consumption.",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "repository_url": {
-                                "type": "string",
-                                "description": "GitHub repository URL (e.g., https://github.com/user/repo)"
+            return ListToolsResult(
+                tools=[
+                    Tool(
+                        name="ingest_repository",
+                        description="Generate a text digest of a GitHub repository using GitIngest. Returns structured plain-text optimized for LLM consumption.",
+                        inputSchema={
+                            "type": "object",
+                            "properties": {
+                                "repository_url": {
+                                    "type": "string",
+                                    "description": "GitHub repository URL (e.g., https://github.com/user/repo)",
+                                },
+                                "github_token": {
+                                    "type": "string",
+                                    "description": "GitHub personal access token for private repositories (optional if GITHUB_TOKEN env var is set)",
+                                },
+                                "branch": {
+                                    "type": "string",
+                                    "description": "Specific branch to analyze (defaults to repository's default branch)",
+                                    "default": None,
+                                },
+                                "include_patterns": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Include files matching Unix shell-style wildcards (e.g., ['*.py', '*.js'])",
+                                    "default": [],
+                                },
+                                "exclude_patterns": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Exclude files matching Unix shell-style wildcards (e.g., ['node_modules/*', '*.log'])",
+                                    "default": [],
+                                },
+                                "max_file_size": {
+                                    "type": "integer",
+                                    "description": "Maximum file size in bytes to process (default: no limit)",
+                                    "default": None,
+                                },
                             },
-                            "github_token": {
-                                "type": "string",
-                                "description": "GitHub personal access token for private repositories (optional if GITHUB_TOKEN env var is set)"
-                            },
-                            "branch": {
-                                "type": "string",
-                                "description": "Specific branch to analyze (defaults to repository's default branch)",
-                                "default": None
-                            },
-                            "include_patterns": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Include files matching Unix shell-style wildcards (e.g., ['*.py', '*.js'])",
-                                "default": []
-                            },
-                            "exclude_patterns": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Exclude files matching Unix shell-style wildcards (e.g., ['node_modules/*', '*.log'])",
-                                "default": []
-                            },
-                            "max_file_size": {
-                                "type": "integer",
-                                "description": "Maximum file size in bytes to process (default: no limit)",
-                                "default": None
-                            }
+                            "required": ["repository_url"],
                         },
-                        "required": ["repository_url"]
-                    }
-                ),
-                Tool(
-                    name="ingest_repository_async",
-                    description="Asynchronously generate a text digest of a GitHub repository. Better for batch processing multiple repositories.",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "repository_url": {
-                                "type": "string",
-                                "description": "GitHub repository URL (e.g., https://github.com/user/repo)"
+                    ),
+                    Tool(
+                        name="ingest_repository_async",
+                        description="Asynchronously generate a text digest of a GitHub repository. Better for batch processing multiple repositories.",
+                        inputSchema={
+                            "type": "object",
+                            "properties": {
+                                "repository_url": {
+                                    "type": "string",
+                                    "description": "GitHub repository URL (e.g., https://github.com/user/repo)",
+                                },
+                                "github_token": {
+                                    "type": "string",
+                                    "description": "GitHub personal access token for private repositories (optional if GITHUB_TOKEN env var is set)",
+                                },
+                                "branch": {
+                                    "type": "string",
+                                    "description": "Specific branch to analyze (defaults to repository's default branch)",
+                                    "default": None,
+                                },
+                                "include_patterns": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Include files matching Unix shell-style wildcards",
+                                    "default": [],
+                                },
+                                "exclude_patterns": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "Exclude files matching Unix shell-style wildcards",
+                                    "default": [],
+                                },
+                                "max_file_size": {
+                                    "type": "integer",
+                                    "description": "Maximum file size in bytes to process",
+                                    "default": None,
+                                },
                             },
-                            "github_token": {
-                                "type": "string",
-                                "description": "GitHub personal access token for private repositories (optional if GITHUB_TOKEN env var is set)"
-                            },
-                            "branch": {
-                                "type": "string",
-                                "description": "Specific branch to analyze (defaults to repository's default branch)",
-                                "default": None
-                            },
-                            "include_patterns": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Include files matching Unix shell-style wildcards",
-                                "default": []
-                            },
-                            "exclude_patterns": {
-                                "type": "array",
-                                "items": {"type": "string"},
-                                "description": "Exclude files matching Unix shell-style wildcards",
-                                "default": []
-                            },
-                            "max_file_size": {
-                                "type": "integer",
-                                "description": "Maximum file size in bytes to process",
-                                "default": None
-                            }
+                            "required": ["repository_url"],
                         },
-                        "required": ["repository_url"]
-                    }
-                ),
-                Tool(
-                    name="validate_repository_url",
-                    description="Validate if a URL is a valid GitHub repository URL",
-                    inputSchema={
-                        "type": "object",
-                        "properties": {
-                            "repository_url": {
-                                "type": "string",
-                                "description": "Repository URL to validate"
-                            }
+                    ),
+                    Tool(
+                        name="validate_repository_url",
+                        description="Validate if a URL is a valid GitHub repository URL",
+                        inputSchema={
+                            "type": "object",
+                            "properties": {
+                                "repository_url": {
+                                    "type": "string",
+                                    "description": "Repository URL to validate",
+                                }
+                            },
+                            "required": ["repository_url"],
                         },
-                        "required": ["repository_url"]
-                    }
-                )
-            ]
+                    ),
+                ]
+            )
 
         @self.server.call_tool()
-        async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
+        async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResult:
             """Handle tool calls."""
             
             if name == "ingest_repository":
@@ -164,65 +157,50 @@ class GitIngestMCPServer:
             else:
                 raise ValueError(f"Unknown tool: {name}")
 
-    async def _validate_repository_url(self, arguments: Dict[str, Any]) -> List[TextContent]:
+    async def _validate_repository_url(self, arguments: Dict[str, Any]) -> CallToolResult:
         """Validate GitHub repository URL."""
         repository_url = arguments.get("repository_url")
-        
+
         if not repository_url:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "valid": False,
-                    "error": "Repository URL is required"
-                }, indent=2)
-            )]
+            return self._create_text_result(json.dumps({
+                "valid": False,
+                "error": "Repository URL is required"
+            }, indent=2))
         
         try:
             parsed = urlparse(repository_url)
             
             # Check if it's a GitHub URL
             if parsed.netloc not in ["github.com", "www.github.com"]:
-                return [TextContent(
-                    type="text",
-                    text=json.dumps({
-                        "valid": False,
-                        "error": "URL must be a GitHub repository URL"
-                    }, indent=2)
-                )]
+                return self._create_text_result(json.dumps({
+                    "valid": False,
+                    "error": "URL must be a GitHub repository URL"
+                }, indent=2))
             
             # Check if it has the right path structure
             path_parts = [p for p in parsed.path.split("/") if p]
             if len(path_parts) < 2:
-                return [TextContent(
-                    type="text",
-                    text=json.dumps({
-                        "valid": False,
-                        "error": "URL must include owner and repository name"
-                    }, indent=2)
-                )]
+                return self._create_text_result(json.dumps({
+                    "valid": False,
+                    "error": "URL must include owner and repository name"
+                }, indent=2))
             
             owner, repo = path_parts[0], path_parts[1]
             
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "valid": True,
-                    "owner": owner,
-                    "repository": repo,
-                    "full_name": f"{owner}/{repo}"
-                }, indent=2)
-            )]
-            
-        except Exception as e:
-            return [TextContent(
-                type="text",
-                text=json.dumps({
-                    "valid": False,
-                    "error": f"Invalid URL format: {str(e)}"
-                }, indent=2)
-            )]
+            return self._create_text_result(json.dumps({
+                "valid": True,
+                "owner": owner,
+                "repository": repo,
+                "full_name": f"{owner}/{repo}"
+            }, indent=2))
 
-    async def _ingest_repository(self, arguments: Dict[str, Any], sync: bool = True) -> List[TextContent]:
+        except Exception as e:
+            return self._create_text_result(json.dumps({
+                "valid": False,
+                "error": f"Invalid URL format: {str(e)}"
+            }, indent=2))
+
+    async def _ingest_repository(self, arguments: Dict[str, Any], sync: bool = True) -> CallToolResult:
         """Ingest repository using GitIngest."""
         repository_url = arguments.get("repository_url")
         github_token = arguments.get("github_token") or os.getenv("GITHUB_TOKEN")
@@ -230,22 +208,17 @@ class GitIngestMCPServer:
         include_patterns = arguments.get("include_patterns", [])
         exclude_patterns = arguments.get("exclude_patterns", [])
         max_file_size = arguments.get("max_file_size")
-        
+
         if not repository_url:
-            return [TextContent(
-                type="text",
-                text="Error: Repository URL is required"
-            )]
-        
+            return self._create_text_result("Error: Repository URL is required")
+
         # Validate URL first
         validation_result = await self._validate_repository_url({"repository_url": repository_url})
-        validation_data = json.loads(validation_result[0].text)
-        
+        validation_text = self._get_text_from_result(validation_result)
+        validation_data = json.loads(validation_text)
+
         if not validation_data.get("valid"):
-            return [TextContent(
-                type="text",
-                text=f"Error: {validation_data.get('error')}"
-            )]
+            return self._create_text_result(f"Error: {validation_data.get('error')}")
         
         try:
             logger.info(f"Starting repository ingestion for: {repository_url}")
@@ -280,18 +253,32 @@ class GitIngestMCPServer:
             
             logger.info(f"Successfully ingested repository: {repository_url}")
             
-            return [TextContent(
-                type="text",
-                text=full_context
-            )]
-            
+            return self._create_text_result(full_context)
+
         except Exception as e:
             error_msg = f"Error ingesting repository {repository_url}: {str(e)}"
             logger.error(error_msg)
-            return [TextContent(
-                type="text",
-                text=error_msg
-            )]
+            return self._create_text_result(error_msg)
+
+    @staticmethod
+    def _create_text_result(text: str) -> CallToolResult:
+        """Create a text-only CallToolResult helper."""
+        return CallToolResult(
+            content=[
+                TextContent(type="text", text=text)
+            ]
+        )
+
+    @staticmethod
+    def _get_text_from_result(result: CallToolResult) -> str:
+        """Extract the first text content entry from a CallToolResult."""
+        if not result.content:
+            raise ValueError("CallToolResult does not contain any content")
+
+        for item in result.content:
+            if isinstance(item, TextContent):
+                return item.text
+        raise ValueError("Expected text content in CallToolResult")
 
     async def _ingest_via_subprocess(self, repository_url: str, ingest_kwargs: Dict[str, Any]) -> tuple:
         """Fallback method using subprocess to call gitingest CLI."""
