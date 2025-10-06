@@ -1,3 +1,9 @@
-# Runtime-only dependencies for the MCP server
-mcp>=1.0.0
-gitingest==0.3.1
+# MCP (Model Context Protocol) dependencies
+mcp>=0.5.0
+pydantic>=2.0.0,<3.0.0
+
+# GitIngest for repository analysis
+gitingest>=0.3.1
+
+# Additional dependencies
+aiohttp>=3.8.0

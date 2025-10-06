@@ -17,12 +17,7 @@ from mcp.server import Server
 from mcp.server.lowlevel.server import NotificationOptions
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
-from mcp.types import (
-    CallToolResult,
-    ListToolsResult,
-    Tool,
-    TextContent
-)
+from mcp.types import CallToolResult, ListToolsResult, Tool, TextContent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -162,7 +157,7 @@ class GitIngestMCPServer:
             else:
                 raise ValueError(f"Unknown tool: {name}")
 
-    async def _validate_repository_url(self, arguments: Dict[str, Any]) -> CallToolResult:
+    async def _validate_repository_url(self, arguments: Dict[str, Any]):
         """Validate GitHub repository URL."""
         repository_url = arguments.get("repository_url")
 
@@ -205,7 +200,7 @@ class GitIngestMCPServer:
                 "error": f"Invalid URL format: {str(e)}"
             }, indent=2))
 
-    async def _ingest_repository(self, arguments: Dict[str, Any], sync: bool = True) -> CallToolResult:
+    async def _ingest_repository(self, arguments: Dict[str, Any], sync: bool = True):
         """Ingest repository using GitIngest."""
         repository_url = arguments.get("repository_url")
         github_token = arguments.get("github_token") or os.getenv("GITHUB_TOKEN")
@@ -266,38 +261,37 @@ class GitIngestMCPServer:
             return self._create_text_result(error_msg)
 
     @staticmethod
-    def _create_text_result(text: str) -> CallToolResult:
-        """Create a text-only CallToolResult helper."""
-        try:
-            # Create TextContent instance explicitly
-            text_content = TextContent(
-                type="text",
-                text=str(text)
-            )
-
-            # Create CallToolResult with explicit content list
-            result = CallToolResult(
-                content=[text_content],
-                isError=False
-            )
-            return result
-        except Exception as e:
-            # Fallback to basic construction
-            return CallToolResult(
-                content=[{"type": "text", "text": str(text)}],
-                isError=False
-            )
+    def _create_text_result(text: str):
+        """Create a text-only result helper."""
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": str(text)
+                }
+            ],
+            "isError": False
+        }
 
     @staticmethod
-    def _get_text_from_result(result: CallToolResult) -> str:
-        """Extract the first text content entry from a CallToolResult."""
-        if not result.content:
-            raise ValueError("CallToolResult does not contain any content")
+    def _get_text_from_result(result) -> str:
+        """Extract the first text content entry from a result."""
+        if isinstance(result, dict):
+            content = result.get("content", [])
+            if content and len(content) > 0:
+                first_item = content[0]
+                if isinstance(first_item, dict) and first_item.get("type") == "text":
+                    return first_item.get("text", "")
 
-        for item in result.content:
-            if isinstance(item, TextContent):
-                return item.text
-        raise ValueError("Expected text content in CallToolResult")
+        # Fallback for CallToolResult objects
+        if hasattr(result, 'content') and result.content:
+            for item in result.content:
+                if isinstance(item, TextContent):
+                    return item.text
+                elif isinstance(item, dict) and item.get("type") == "text":
+                    return item.get("text", "")
+
+        raise ValueError("Expected text content in result")
 
     async def _ingest_via_subprocess(self, repository_url: str, ingest_kwargs: Dict[str, Any]) -> tuple:
         """Fallback method using subprocess to call gitingest CLI."""
