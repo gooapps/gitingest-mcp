@@ -8,7 +8,7 @@ on:
     branches: [ main, master ]
 
 env:
-  REGISTRY: ghcr.io
+  REGISTRY: docker.io
   IMAGE_NAME: gooapps/gitingest-mcp
 
 jobs:
@@ -25,12 +25,11 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
+    - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Extract metadata
       id: meta
@@ -58,6 +57,7 @@ jobs:
     - name: Test the built image
       run: |
         docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest python -c "import mcp; print('MCP server test successful')"
+
 
   security-scan:
     runs-on: ubuntu-latest

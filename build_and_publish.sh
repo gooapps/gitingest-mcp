@@ -6,8 +6,8 @@ set -e
 
 # Configuration
 IMAGE_NAME="gitingest-mcp"
-REGISTRY="ghcr.io"
-USERNAME="gooapps"  # Organization or username owning the container registry namespace
+REGISTRY="docker.io"  # Using Docker Hub for public access
+USERNAME="develgooapps"  # Organization or username owning the container registry namespace
 FULL_IMAGE_NAME="${REGISTRY}/${USERNAME}/${IMAGE_NAME}"
 
 # Colors for output
@@ -39,11 +39,11 @@ if ! docker info > /dev/null 2>&1; then
     exit 1
 fi
 
-# Check if user is logged in to GitHub Container Registry
-if ! docker info | grep -q "ghcr.io"; then
-    print_warning "You may need to login to GitHub Container Registry:"
-    echo "  docker login ghcr.io"
-    echo "  Use your GitHub username and a Personal Access Token with 'write:packages' scope"
+# Check if user is logged in to Docker Hub
+if ! docker info | grep -q "docker.io"; then
+    print_warning "You may need to login to Docker Hub:"
+    echo "  docker login"
+    echo "  Use your Docker Hub username and password"
     echo ""
 fi
 
@@ -61,10 +61,10 @@ echo "  - ${FULL_IMAGE_NAME}:latest"
 echo "  - ${FULL_IMAGE_NAME}:${VERSION}"
 
 # Ask if user wants to push to registry
-read -p "Do you want to push the image to GitHub Container Registry? (y/N): " -n 1 -r
+read -p "Do you want to push the image to Docker Hub? (y/N): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    print_status "Pushing image to registry..."
+    print_status "Pushing image to Docker Hub..."
     
     # Push latest tag
     docker push "${FULL_IMAGE_NAME}:latest"
@@ -72,9 +72,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Push version tag
     docker push "${FULL_IMAGE_NAME}:${VERSION}"
     
-    print_status "Image pushed successfully!"
+    print_status "Image pushed successfully to Docker Hub!"
     echo ""
-    echo -e "${GREEN}Your MCP server is now available at:${NC}"
+    echo -e "${GREEN}Your MCP server is now publicly available at:${NC}"
     echo "  ${FULL_IMAGE_NAME}:latest"
     echo ""
     echo -e "${BLUE}Usage in Claude Desktop:${NC}"
@@ -90,7 +90,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         "-i",
         "--rm",
         "-e", "GITHUB_TOKEN",
-        "ghcr.io/${USERNAME}/gitingest-mcp:latest"
+        "docker.io/${USERNAME}/gitingest-mcp:latest"
       ],
       "env": {
         "GITHUB_TOKEN": "your_github_token_here"
