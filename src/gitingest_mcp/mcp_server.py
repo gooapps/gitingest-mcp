@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 
 import mcp
 from mcp.server import Server
+from mcp.server.lowlevel.server import NotificationOptions
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 from mcp.types import (
@@ -372,7 +373,7 @@ class GitIngestMCPServer:
                     server_name="gitingest-mcp",
                     server_version="1.0.0",
                     capabilities=self.server.get_capabilities(
-                        notification_options=None,
+                        notification_options=NotificationOptions(),
                         experimental_capabilities=None,
                     ),
                 ),
