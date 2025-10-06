@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  gitingest-mcp:
+    build: .
+    container_name: gitingest-mcp-server
+    environment:
+      # GitHub token for private repository access
+      # Set this to your GitHub personal access token
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      
+      # Optional: Set log level
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      
+      # Optional: Set timezone
+      - TZ=${TZ:-UTC}
+    
+    # Mount volume for persistent data (if needed)
+    volumes:
+      - ./data:/app/data:rw
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import mcp; print('healthy')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+    
+    # Network configuration (if needed for future HTTP interface)
+    ports:
+      - "8000:8000"
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Read-only root filesystem for security
+    read_only: true
+    
+    # Temporary filesystem for writable directories
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+      - /app/data:noexec,nosuid,size=1g

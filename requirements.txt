@@ -1,0 +1,18 @@
+# MCP Server dependencies
+mcp>=1.0.0
+
+# GitIngest integration
+gitingest>=1.0.0
+
+# Additional dependencies for robust operation
+aiofiles>=23.0.0
+asyncio-mqtt>=0.16.0
+httpx>=0.25.0
+pydantic>=2.0.0
+
+# Development and testing dependencies (optional)
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+black>=23.0.0
+flake8>=6.0.0
+mypy>=1.0.0

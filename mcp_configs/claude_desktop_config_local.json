@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "gitingest": {
+      "command": "docker",
+      "args": [
+        "run",
+        "-i",
+        "--rm",
+        "-e", "GITHUB_TOKEN",
+        "-e", "LOG_LEVEL",
+        "-e", "GITINGEST_MAX_FILE_SIZE",
+        "-e", "GITINGEST_TIMEOUT",
+        "gitingest-mcp:latest"
+      ],
+      "env": {
+        "GITHUB_TOKEN": "",
+        "LOG_LEVEL": "INFO",
+        "GITINGEST_MAX_FILE_SIZE": "1048576",
+        "GITINGEST_TIMEOUT": "300"
+      }
+    }
+  }
+}
