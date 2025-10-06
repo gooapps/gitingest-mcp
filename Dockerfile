@@ -12,8 +12,7 @@ WORKDIR /app
 COPY . /app
 
 # Instala las dependencias del MCP
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir mcp gitingest
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Cambia al directorio donde está el servidor MCP
 WORKDIR /app/src/gitingest_mcp
