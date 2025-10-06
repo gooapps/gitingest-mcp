@@ -10,7 +10,7 @@
         "-e", "LOG_LEVEL",
         "-e", "GITINGEST_MAX_FILE_SIZE",
         "-e", "GITINGEST_TIMEOUT",
-        "ghcr.io/gooapps/gitingest-mcp:latest"
+        "docker.io/develgooapps/gitingest-mcp:latest"
       ],
       "env": {
         "GITHUB_TOKEN": "",
