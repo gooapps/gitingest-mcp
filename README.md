@@ -98,7 +98,7 @@ Para acceder a repositorios privados, necesitas un token de acceso personal de G
 ./start.sh
 
 # O ejecutar directamente
-python mcp_server.py
+python -m gitingest_mcp.mcp_server
 ```
 
 ### Docker

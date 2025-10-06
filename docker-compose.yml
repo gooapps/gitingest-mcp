@@ -18,6 +18,7 @@ services:
     # Mount volume for persistent data (if needed)
     volumes:
       - ./data:/app/data:rw
+      - ./src:/app/src:ro
     
     # Restart policy
     restart: unless-stopped

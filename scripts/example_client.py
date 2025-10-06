@@ -16,7 +16,7 @@ from typing import Dict, Any
 class GitIngestMCPClient:
     """Simple client for GitIngest MCP Server."""
     
-    def __init__(self, server_command: str = "python mcp_server.py"):
+    def __init__(self, server_command: str = "python -m gitingest_mcp.mcp_server"):
         self.server_command = server_command
         self.process = None
     

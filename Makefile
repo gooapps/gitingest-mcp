@@ -26,7 +26,7 @@ install:
 # Run tests
 test:
 	@echo "Running MCP server tests..."
-	python test_mcp.py
+	python scripts/test_mcp.py
 
 # Build Docker image locally
 build:
@@ -51,7 +51,7 @@ docker-test:
 # Run locally
 run:
 	@echo "Starting MCP server locally..."
-	./start.sh
+	./scripts/start.sh
 
 # Run with Docker Compose
 docker-run:
@@ -86,7 +86,7 @@ dev-setup: install
 # Quick test with a public repository
 test-public:
 	@echo "Testing with public repository..."
-	python -c "from mcp_server import GitIngestMCPServer; import asyncio; asyncio.run(GitIngestMCPServer()._ingest_repository({'repository_url': 'https://github.com/octocat/Hello-World', 'include_patterns': ['*.md']}))"
+	python -c "from gitingest_mcp.mcp_server import GitIngestMCPServer; import asyncio; asyncio.run(GitIngestMCPServer()._ingest_repository({'repository_url': 'https://github.com/octocat/Hello-World', 'include_patterns': ['*.md']}))"
 
 # Check if GitHub token is set
 check-token:

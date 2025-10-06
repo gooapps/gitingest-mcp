@@ -29,7 +29,7 @@ make install
 ./start.sh
 
 # Opción B: Directamente
-python mcp_server.py
+python -m gitingest_mcp.mcp_server
 
 # Opción C: Con Docker
 docker-compose up --build
