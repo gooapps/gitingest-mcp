@@ -17,7 +17,12 @@ from mcp.server import Server
 from mcp.server.lowlevel.server import NotificationOptions
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
-from mcp.types import CallToolResult, ListToolsResult, Tool, TextContent
+from mcp.types import (
+    CallToolResult,
+    ListToolsResult,
+    Tool,
+    TextContent
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -34,14 +39,14 @@ except ImportError:
 
 class GitIngestMCPServer:
     """MCP Server for GitIngest integration."""
-    
+
     def __init__(self):
         self.server = Server("gitingest-mcp")
         self.setup_handlers()
-        
+
     def setup_handlers(self):
         """Setup MCP server handlers."""
-        
+
         @self.server.list_tools()
         async def handle_list_tools() -> ListToolsResult:
             """List available tools."""
@@ -147,7 +152,7 @@ class GitIngestMCPServer:
         @self.server.call_tool()
         async def handle_call_tool(name: str, arguments: Dict[str, Any]) -> CallToolResult:
             """Handle tool calls."""
-            
+
             if name == "ingest_repository":
                 return await self._ingest_repository(arguments, sync=True)
             elif name == "ingest_repository_async":
@@ -166,17 +171,17 @@ class GitIngestMCPServer:
                 "valid": False,
                 "error": "Repository URL is required"
             }, indent=2))
-        
+
         try:
             parsed = urlparse(repository_url)
-            
+
             # Check if it's a GitHub URL
             if parsed.netloc not in ["github.com", "www.github.com"]:
                 return self._create_text_result(json.dumps({
                     "valid": False,
                     "error": "URL must be a GitHub repository URL"
                 }, indent=2))
-            
+
             # Check if it has the right path structure
             path_parts = [p for p in parsed.path.split("/") if p]
             if len(path_parts) < 2:
@@ -184,9 +189,9 @@ class GitIngestMCPServer:
                     "valid": False,
                     "error": "URL must include owner and repository name"
                 }, indent=2))
-            
+
             owner, repo = path_parts[0], path_parts[1]
-            
+
             return self._create_text_result(json.dumps({
                 "valid": True,
                 "owner": owner,
@@ -219,10 +224,10 @@ class GitIngestMCPServer:
 
         if not validation_data.get("valid"):
             return self._create_text_result(f"Error: {validation_data.get('error')}")
-        
+
         try:
             logger.info(f"Starting repository ingestion for: {repository_url}")
-            
+
             # Prepare GitIngest parameters
             ingest_kwargs = {}
             if github_token:
@@ -235,7 +240,7 @@ class GitIngestMCPServer:
                 ingest_kwargs["exclude_patterns"] = exclude_patterns
             if max_file_size:
                 ingest_kwargs["max_file_size"] = max_file_size
-            
+
             if GITINGEST_AVAILABLE:
                 # Use GitIngest Python package
                 if sync:
@@ -247,12 +252,12 @@ class GitIngestMCPServer:
                 summary, tree, content = await self._ingest_via_subprocess(
                     repository_url, ingest_kwargs
                 )
-            
+
             # Combine all sections for LLM consumption
             full_context = f"{summary}\n\n{tree}\n\n{content}"
-            
+
             logger.info(f"Successfully ingested repository: {repository_url}")
-            
+
             return self._create_text_result(full_context)
 
         except Exception as e:
@@ -263,11 +268,25 @@ class GitIngestMCPServer:
     @staticmethod
     def _create_text_result(text: str) -> CallToolResult:
         """Create a text-only CallToolResult helper."""
-        return CallToolResult(
-            content=[
-                TextContent(type="text", text=text)
-            ]
-        )
+        try:
+            # Create TextContent instance explicitly
+            text_content = TextContent(
+                type="text",
+                text=str(text)
+            )
+
+            # Create CallToolResult with explicit content list
+            result = CallToolResult(
+                content=[text_content],
+                isError=False
+            )
+            return result
+        except Exception as e:
+            # Fallback to basic construction
+            return CallToolResult(
+                content=[{"type": "text", "text": str(text)}],
+                isError=False
+            )
 
     @staticmethod
     def _get_text_from_result(result: CallToolResult) -> str:
@@ -283,10 +302,10 @@ class GitIngestMCPServer:
     async def _ingest_via_subprocess(self, repository_url: str, ingest_kwargs: Dict[str, Any]) -> tuple:
         """Fallback method using subprocess to call gitingest CLI."""
         import subprocess
-        
+
         # Build gitingest command
         cmd = ["gitingest", repository_url, "-o", "-"]
-        
+
         # Add parameters
         if ingest_kwargs.get("token"):
             cmd.extend(["-t", ingest_kwargs["token"]])
@@ -300,7 +319,7 @@ class GitIngestMCPServer:
                 cmd.extend(["-e", pattern])
         if ingest_kwargs.get("max_file_size"):
             cmd.extend(["-s", str(ingest_kwargs["max_file_size"])])
-        
+
         try:
             # Run gitingest command
             process = await asyncio.create_subprocess_exec(
@@ -308,21 +327,21 @@ class GitIngestMCPServer:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            
+
             stdout, stderr = await process.communicate()
-            
+
             if process.returncode != 0:
                 raise Exception(f"GitIngest CLI failed: {stderr.decode()}")
-            
+
             # Parse the output (GitIngest CLI returns combined output)
             output = stdout.decode()
-            
+
             # Split into sections (this is a simplified parser)
             lines = output.split('\n')
             summary_lines = []
             tree_lines = []
             content_lines = []
-            
+
             current_section = "summary"
             for line in lines:
                 if line.startswith("Directory structure:"):
@@ -338,13 +357,13 @@ class GitIngestMCPServer:
                         tree_lines.append(line)
                     elif current_section == "content":
                         content_lines.append(line)
-            
+
             summary = '\n'.join(summary_lines).strip()
             tree = '\n'.join(tree_lines).strip()
             content = '\n'.join(content_lines).strip()
-            
+
             return summary, tree, content
-            
+
         except FileNotFoundError:
             raise Exception("GitIngest CLI not found. Please install gitingest package or ensure gitingest command is available.")
         except Exception as e:
