@@ -238,10 +238,23 @@ class GitIngestMCPServer:
 
             if GITINGEST_AVAILABLE:
                 # Use GitIngest Python package
-                if sync:
-                    summary, tree, content = ingest(repository_url, **ingest_kwargs)
-                else:
-                    summary, tree, content = await ingest_async(repository_url, **ingest_kwargs)
+                try:
+                    if sync:
+                        # Run in a thread pool to avoid event loop conflicts
+                        import concurrent.futures
+                        loop = asyncio.get_event_loop()
+                        with concurrent.futures.ThreadPoolExecutor() as executor:
+                            summary, tree, content = await loop.run_in_executor(
+                                executor, lambda: ingest(repository_url, **ingest_kwargs)
+                            )
+                    else:
+                        summary, tree, content = await ingest_async(repository_url, **ingest_kwargs)
+                except Exception as gitingest_error:
+                    logger.warning(f"GitIngest package failed: {gitingest_error}. Falling back to subprocess.")
+                    # Fallback to subprocess if GitIngest package fails
+                    summary, tree, content = await self._ingest_via_subprocess(
+                        repository_url, ingest_kwargs
+                    )
             else:
                 # Fallback to subprocess
                 summary, tree, content = await self._ingest_via_subprocess(
@@ -386,5 +399,20 @@ async def main():
     await server.run()
 
 
+def run_server():
+    """Run the server, handling existing event loops."""
+    try:
+        # Try to get the current event loop
+        loop = asyncio.get_running_loop()
+        # If we get here, there's already a running loop
+        # Create a task in the existing loop
+        task = loop.create_task(main())
+        return task
+    except RuntimeError:
+        # No running loop, safe to use asyncio.run()
+        asyncio.run(main())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    run_server()
+
