@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """
-GitIngest MCP Server - Simplified FastMCP Implementation
+GitIngest MCP Server - Compatible con entornos locales y remotos
 
-A simplified MCP server that integrates with GitIngest to generate repository context files
-for private GitHub repositories, designed for LLM task resolution nodes.
+Versión adaptada para evitar errores de doble autenticación (Duplicate header: Authorization)
+al ejecutar en Flowise o contenedores Docker con GITHUB_TOKEN.
 """
 
 from typing import Annotated
 from gitingest import ingest_async
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
+import os
+import subprocess
 
-# https://github.com/jlowin/fastmcp/issues/81#issuecomment-2714245145
+# Inicializa el servidor MCP
 mcp = FastMCP("Gitingest MCP Server", log_level="ERROR")
 
 
@@ -19,34 +21,51 @@ mcp = FastMCP("Gitingest MCP Server", log_level="ERROR")
 async def ingest_git(
     source: Annotated[
         str,
-        Field(
-            description="The source to analyze, which can be a URL (for a Git repository) or a local directory path."
-        ),
+        Field(description="URL del repositorio Git o ruta local a analizar."),
     ],
     max_file_size: Annotated[
         int,
-        Field(
-            description=(
-                "Maximum allowed file size for file ingestion."
-                "Files larger than this size are ignored, by default 10*1024*1024 (10 MB)."
-            )
-        ),
+        Field(description="Tamaño máximo de archivo permitido para ingestión (por defecto 10 MB)."),
     ] = 10 * 1024 * 1024,
     include_patterns: Annotated[
         str,
-        Field(description="Pattern or set of patterns specifying which files to include, e.q. '*.md, src/'"),
+        Field(description="Patrones de archivos a incluir, e.g. '*.py, src/'."),
     ] = "",
     exclude_patterns: Annotated[
         str,
-        Field(description="Pattern or set of patterns specifying which files to exclude, e.q. '*.md, src/'"),
+        Field(description="Patrones de archivos a excluir, e.g. 'node_modules/, *.md'."),
     ] = "",
-    branch: Annotated[str, Field(description="The branch to clone and ingest.")] = "main",
+    branch: Annotated[
+        str,
+        Field(description="Branch del repositorio a clonar (por defecto 'main')."),
+    ] = "main",
 ) -> str:
     """
-    This function analyzes a source (URL or local path), clones the corresponding repository (if applicable),
-    and processes its files according to the specified query parameters.
-    It can return a summary, a tree-like structure of the files, or the content of the files.
+    Clona y analiza el repositorio indicado, generando resumen, estructura y contenido.
+    Compatible con repositorios privados de GitHub mediante GITHUB_TOKEN.
     """
+
+    token = os.getenv("GITHUB_TOKEN")
+
+    if token:
+        # 🚫 Evitamos que gitingest duplique cabeceras Authorization
+        os.environ.pop("GITHUB_TOKEN", None)
+
+        # 🧠 Configuramos git globalmente con el token para repos privados
+        subprocess.run(
+            [
+                "git",
+                "config",
+                "--global",
+                "url.https://x-access-token:"
+                + token
+                + "@github.com/.insteadOf",
+                "https://github.com/",
+            ],
+            check=False,
+        )
+
+    # Ejecutar la ingestión real
     summary, tree, content = await ingest_async(
         source,
         max_file_size=max_file_size,
@@ -55,13 +74,7 @@ async def ingest_git(
         branch=branch,
     )
 
-    return "\n\n".join(
-        [
-            summary,
-            tree,
-            content,
-        ]
-    )
+    return "\n\n".join([summary, tree, content])
 
 
 def main() -> None:
