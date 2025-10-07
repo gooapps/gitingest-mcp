@@ -23,6 +23,10 @@ async def ingest_git(
         str,
         Field(description="URL del repositorio Git o ruta local a analizar."),
     ],
+    token: Annotated[
+        str,
+        Field(description="Access token de Github."),
+    ],
     max_file_size: Annotated[
         int,
         Field(description="Tamaño máximo de archivo permitido para ingestión (por defecto 10 MB)."),
@@ -44,30 +48,10 @@ async def ingest_git(
     Clona y analiza el repositorio indicado, generando resumen, estructura y contenido.
     Compatible con repositorios privados de GitHub mediante GITHUB_TOKEN.
     """
-
-    token = os.getenv("GITHUB_TOKEN")
-
-    if token:
-        # 🚫 Evitamos que gitingest duplique cabeceras Authorization
-        os.environ.pop("GITHUB_TOKEN", None)
-
-        # 🧠 Configuramos git globalmente con el token para repos privados
-        subprocess.run(
-            [
-                "git",
-                "config",
-                "--global",
-                "url.https://x-access-token:"
-                + token
-                + "@github.com/.insteadOf",
-                "https://github.com/",
-            ],
-            check=False,
-        )
-
     # Ejecutar la ingestión real
     summary, tree, content = await ingest_async(
         source,
+        token=token,
         max_file_size=max_file_size,
         include_patterns=include_patterns,
         exclude_patterns=exclude_patterns,
